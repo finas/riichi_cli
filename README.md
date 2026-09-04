@@ -1,301 +1,360 @@
-# 🀄️ Japanese Riichi Mahjong - Terminal CLI
+# Riichi Mahjong CLI
 
-A fully-featured Japanese Riichi Mahjong terminal CLI game supporting 4-player (yonma) and 3-player (sanma) modes, with multilingual interface (Chinese/Japanese/English), built with Python + Rich.
+An interactive Japanese riichi mahjong game for the terminal, written in
+Python and rendered with [Rich](https://github.com/Textualize/rich).
 
-[![PyPI](https://img.shields.io/pypi/v/riichi-mahjong-cli)](https://pypi.org/project/riichi-mahjong-cli/)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/riichi-mahjong-cli?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/riichi-mahjong-cli)
-[![GitHub](https://img.shields.io/badge/GitHub-YarrowRen%2FMahjongCLI-181717?logo=github)](https://github.com/YarrowRen/MahjongCLI)
-[![MahjongCLI DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YarrowRen/MahjongCLI)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+The project combines a playable rules engine, explainable native AI, optional
+MJAI engine adapters, LAN multiplayer, replay logs, and learning tools in one
+source tree.
 
-[中文文档](https://github.com/YarrowRen/MahjongCLI/blob/master/README-CN.md)
+[简体中文文档](README-CN.md)
 
-## Preview
+## Requirements
 
-<table><tr>
-<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/02_normal_en.gif" alt="Normal Play"/></td>
-<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/03_meld_en.gif" alt="Meld Actions"/></td>
-</tr></table>
+- Python 3.10 or newer
+- `rich` for the game UI
+- `pytest` for the test suite
+- A terminal that supports standard ANSI output
 
-## Features
+The image tile mode additionally requires a compatible terminal such as
+Ghostty, Kitty, iTerm2, or WezTerm. Text and Unicode tile modes work in a
+a normal terminal without inline image support.
 
-- **4-Player Mahjong** - Hanchan (half game) / Tonpuusen (east-only)
-- **3-Player Mahjong** - Hanchan / Tonpuusen (no 2m-8m, no chi, kita)
-- **Complete Rule Engine** - 30+ yaku detection, fu calculation, scoring
-- **Strong native AI opponents** - Ukeire, dora, yaku-route and defense-aware search
-- **Akochan AI backend** - Bundled open-source engine with native fallback
-- **Trainer-Style Discard Review** - After each discard, compare shanten,
-  effective tiles, waits, hand value, defense, and ranked alternatives
-- **Spectator Mode** - AI vs AI auto-play
-- **Multilingual** - Chinese, Japanese, and English interface
-- **Colored Tiles** - Rich terminal rendering; red fives shown in orange, draw tile and call/ron target tile highlighted
-- **A+B Time Control** - Base + bank seconds per action, real-time countdown with per-second refresh (unlimited by default)
-- **Game Replay** - Browse finished games and step through every action in god view (menu option 8)
-- **Game Logs** - Every finished game is recorded as JSON in a writable per-user directory (override with `MAHJONG_LOG_DIR`)
-- **Adjustable AI Speed** - 1s / 3s / 5s / random delay presets in Settings
+## Install and run
 
-## Install
+From a checkout:
 
 ```bash
-pipx install riichi-mahjong-cli
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python3 main.py
 ```
 
-Or with pip:
+The package also exposes the `riichi` console command:
 
 ```bash
-pip install riichi-mahjong-cli
-```
-
-## Quick Start
-
-```bash
+python -m pip install -e .
 riichi
 ```
 
-Or run from source:
+`python3 -m mahjong` is another supported entrypoint. The game starts in
+Chinese; language can be changed in Settings.
 
-```bash
-python main.py
-```
+## Main menu
 
-The game starts in Chinese by default. Language, time control, and AI speed can be changed in **Settings** (main menu option 7). **Replay** (option 8) lets you review any finished game step by step.
+The current menu provides:
 
-### Akochan AI backend
+| Option | Mode |
+|---:|---|
+| 1 | 4-player hanchan |
+| 2 | 4-player east-only game (tonpuu) |
+| 3 | 3-player hanchan (sanma) |
+| 4 | 3-player east-only game |
+| 5 | Spectator mode: AI versus AI |
+| 6 | LAN multiplayer: host or join |
+| 7 | Settings |
+| 8 | Replay browser |
+| 9 | Learning mode with an AI coach |
+| 10 | Early-hand route practice |
+| 0 | Quit |
 
-The repository includes a macOS build of the open-source Akochan engine and its
-evaluation parameters. AI-vs-AI spectator mode uses it automatically; the fair
-native AI remains the default for human games. You can select it explicitly
-with:
+Settings is main menu option 7. It controls language, time control, AI action
+delay, tile display mode, and sound. The available time controls are unlimited,
+5+20, 10+20, 15+30, and 60+0 seconds in A+B notation. AI delays are 1, 3, 5,
+or random 1–5 seconds.
 
-```bash
-MAHJONG_AI_BACKEND=akochan python main.py
-```
+## Game rules
 
-Akochan’s legacy pipe mode expects complete initial hands, so use it only for
-trusted/offline analysis. In AI-vs-AI spectator mode, `MAHJONG_AI_BACKEND=akochan`
-uses the complete recorded deal (oracle mode) because no human is competing;
-human games continue to use the fair native backend unless a compatible
-masked-state engine is supplied.
+The engine supports both standard 136-tile four-player games and 108-tile
+sanma games. Sanma removes 2m–8m, disables chi, and supports kita (north-tile
+extraction). The default starting scores are 25,000 for four-player games and
+35,000 for sanma.
 
-You can also provide another MJAI-compatible engine explicitly:
+Implemented engine responsibilities include:
 
-```bash
-MAHJONG_AI_COMMAND="python path/to/engine.py" python main.py
-```
+- Standard, chiitoitsu, and kokushi agari detection
+- Standard, chiitoitsu, and kokushi shanten calculation
+- Fu calculation and han/fu score calculation for tsumo and ron
+- Riichi, double riichi, ippatsu, furiten, and riichi wait locking
+- Chi, pon, open kan, concealed kan, added kan, rinshan, and chankan
+- Haitei, houtei, abortive draws, exhaustive draws, and triple ron handling
+- Dora, ura-dora, red dora, and sanma kita scoring
+- Dealer rotation, honba, riichi sticks, game-end ranking, and bust handling
 
-### Mortal backend
+The implemented yaku set includes:
 
-After building the `mortal:latest` Docker image and placing a compatible
-four-player checkpoint at `~/Models/mortal/mortal.pth`, start Mortal with:
+- Regular yaku: riichi, double riichi, ippatsu, menzen tsumo, tanyao, pinfu,
+  iipeikou, ryanpeikou, yakuhai, haitei, houtei, rinshan, chankan, chanta,
+  junchan, ittsu, sanshoku doujun, sanshoku doukou, toitoi, sanankou,
+  honroutou, shousangen, chiitoitsu, honitsu, and chinitsu
+- Yakuman: tenhou, chiihou, kokushi musou, suu ankou, daisangen,
+  shousuushii, daisuushii, tsuuiisou, chinroutou, ryuuiisou, chuuren poutou,
+  and suukantsu
 
-```bash
-MAHJONG_AI_BACKEND=mortal python3 main.py
-```
-
-The bundled launcher uses `linux/amd64` for Apple Silicon compatibility and
-mounts the model read-only. Set `MORTAL_MODEL_DIR` to use another model
-directory, or `MAHJONG_AI_TIMEOUT` to override the default 30-second Mortal
-response timeout. Mortal is currently supported for four-player games only.
-Mortal players are identified on the board with a `[Mortal]` suffix. Set
-`MAHJONG_AI_DISPLAY_NAME` to show a custom checkpoint or engine name instead,
-for example `MAHJONG_AI_DISPLAY_NAME="Mortal v4"`.
-
-The command is started once per seat and receives the seat number as its final
-argument. Engine events are sent as JSON lines and every response is checked
-against the legal actions calculated by this project. If the process is absent,
-malformed, or does not answer within two seconds, the built-in strong AI takes
-over automatically, so a bad external setup cannot freeze or corrupt a game.
-
-### Learning Mode (Mortal Coach)
-
-Select **Option 9** in the main menu to enter **Learning Mode**.
-In this mode:
-- All opponents (Seats 1, 2, 3) are AI players.
-- Seat 0 (human player) has a background Mortal coach attached.
-- On each turn, the coach displays real-time recommendations with **Win Possibility (%)**, **Deal-in Risk (%)**, **Shanten**, **Ukeire**, and top alternative discards.
-- The game does **not** auto-play: you retain full manual control over every move and can freely follow or deviate from the advice.
-- If the external Mortal engine is not running, the built-in intelligent coach automatically provides the suggestions and probability metrics as fallback.
-
-### Early Hand Route Practice Mode (Option 10)
-
-Select **Option 10** in the main menu to practice opening hand planning (**配牌构想与前巡实战特训**):
-1. **Phase 1 (Route Formulation / 配牌定构想)**:
-   - Receive a realistic opening deal (配牌 14 tiles) with dora and wind context.
-   - Evaluate hand blocks and commit to a strategic route (e.g. *Riichi/Pinfu*, *Tanyao*, *Yakuhai Speed*, *Flush*, *Seven Pairs*, or *Defensive Fold*).
-2. **Phase 2 (Play Opening Turns / 前巡实战操作)**:
-   - Play through the critical first 6–8 turns with active AI opponents.
-   - On each turn, review live 5-block evolution, target route alignment, and Mortal's Q-values and Softmax $P\%$.
-3. **Phase 3 (Report Card / 前巡战果诊断与评分)**:
-   - View shanten progression (e.g. 4-shanten $\rightarrow$ 1-shanten), block pruning efficiency, and decision concordance rate against Mortal.
-
-### Run Tests
-
-```bash
-pytest tests/
-```
+Dora are counted for scoring but do not, by themselves, satisfy the real-yaku
+requirement for a win.
 
 ## Controls
 
-| Key | Action |
-|------|------|
-| 1-14 | Select tile to discard |
-| `t` | Tsumo (self-draw win) |
-| `h` | Ron (win off discard) |
-| `r` | Declare Riichi |
-| `p` | Pon |
-| `c` | Chi |
-| `k` | Kan (concealed/added/open) |
-| `n` | Kita (3-player only) |
-| `9` | Nine-tile draw |
-| `s` | Skip |
-
-### Replay Controls
+During a normal turn, the numbered choices select a discard. Available action
+keys are shown by the prompt and are validated by the rules engine:
 
 | Key | Action |
-|------|------|
-| `Enter` | Next step |
-| `b` | Previous step |
-| number | Jump to step |
-| `q` | Back |
+|---|---|
+| `1`–`14` | Select a tile to discard |
+| `t` | Tsumo, when legal |
+| `h` | Ron, when legal |
+| `r` | Declare riichi and select the riichi discard |
+| `p` | Pon, when legal |
+| `c` | Chi, when legal |
+| `k` | Kan, when legal |
+| `n` | Kita in sanma, when legal |
+| `9` | Declare the nine-tile abortive draw, when legal |
+| `s` | Skip an optional action |
+| `H` | Toggle helper panels |
+| `G` | Request on-demand Gemini advice |
 
-## Project Structure
+Lowercase `h` is Ron. Uppercase `H` toggles the helper panels. After riichi,
+tsumogiri is forced unless another legal special action is available.
 
-```
-game/
-├── main.py                     # Entry point (backward compatible)
-├── mahjong/
-│   ├── cli.py                  # CLI entry point (riichi command)
-│   ├── core/                   # Core data models
-│   │   ├── tile.py             # Tile definitions (136/34 dual encoding, red dora)
-│   │   ├── meld.py             # Meld data structures
-│   │   ├── hand.py             # Hand management
-│   │   ├── wall.py             # Wall and dead wall
-│   │   └── player_state.py     # Player state tracking
-│   ├── rules/                  # Rule engine (pure functions, stateless)
-│   │   ├── agari.py            # Win detection (LRU cached)
-│   │   ├── shanten.py          # Shanten calculation (LRU cached)
-│   │   ├── fu.py               # Fu calculation
-│   │   ├── yaku.py             # Yaku detection (30+ types)
-│   │   ├── scoring.py          # Score calculation
-│   │   └── furiten.py          # Furiten detection
-│   ├── engine/                 # Game engine
-│   │   ├── game.py             # Hanchan/Tonpuusen management
-│   │   ├── round.py            # Single round flow control
-│   │   ├── action.py           # Action definitions
-│   │   ├── event.py            # Event bus
-│   │   ├── game_logger.py      # Game logging
-│   │   ├── time_control.py     # A+B time control presets
-│   │   └── ai_delay.py         # AI action speed presets
-│   ├── player/                 # Player abstraction & AI
-│   │   ├── base.py             # Player base class + GameView
-│   │   ├── human.py            # Human player + timing logic
-│   │   └── greedy_ai.py        # Greedy AI
-│   ├── replay/                 # Game replay
-│   │   ├── loader.py           # Log scanning & loading
-│   │   └── state.py            # Step-by-step state reconstruction
-│   └── ui/                     # Terminal UI
-│       ├── renderer.py         # Rendering facade
-│       ├── tile_display.py     # Tile display formatting
-│       ├── board_layout.py     # Board layout rendering
-│       ├── replay_screen.py    # Replay browser (menu option 8)
-│       ├── input_handler.py    # User input handling
-│       ├── timeout_input.py    # Timed input + live countdown (ANSI)
-│       ├── i18n.py             # Internationalization (zh/ja/en)
-│       ├── labels.py           # Localized label construction
-│       └── locales/            # Translation files
-│           ├── zh.py           # Chinese translations
-│           ├── ja.py           # Japanese translations
-│           └── en.py           # English translations
-├── tests/                      # Unit tests (168 cases)
-└── data/
-    └── scoring_table.json      # Han/fu → points lookup table
-```
+The helper and discard-review panels are read-only. They explain shanten,
+ukeire, waits, dora value, shape, danger, alternative discards, and possible
+hand routes without changing the live game state.
 
-## Supported Yaku
+## AI and coaching
 
-### 1 Han
-Riichi, Menzen Tsumo, Tanyao, Pinfu, Iipeikou, Yakuhai (round/seat wind, dragons), Ippatsu, Haitei, Houtei, Rinshan Kaihou, Chankan
+### Native AI
 
-### 2 Han
-Double Riichi, Chanta, Ittsu, Sanshoku Doujun, Sanshoku Doukou, Toitoi, San Ankou, Honroutou, Shousangen, Chiitoitsu
+Human games use the built-in `GreedyAI` by default. Its bounded, explainable
+ranking considers legal actions, shanten, ukeire, continuation shape, waits,
+dora and yaku routes, visible information, and riichi danger. The engine
+remains authoritative: an AI can only return an action present in
+`AvailableActions`.
 
-### 3 Han
-Honitsu, Junchan, Ryanpeikou
+The native `AICoach` exposes the same style of analysis to the player,
+including tactical stance, safe tiles, win possibility, deal-in risk, and
+ranked alternatives.
 
-### 6 Han
-Chinitsu
+### Spectator mode
 
-### Yakuman
-Kokushi Musou, Suu Ankou, Daisangen, Shousuushii, Daisuushii, Tsuuiisou, Chinroutou, Ryuuiisou, Chuuren Poutou, Suukantsu, Tenhou, Chiihou
+Spectator mode is an AI-versus-AI trainer. The menu offers:
 
-## Rule Engine Verification
+- Native rule-based AI
+- Akochan, using the bundled launcher when available
+- Mortal, using the bundled Docker launcher when configured
 
-The repository includes unit tests, full-game invariants, and an optional Tenhou
-replay harness. Tenhou XML fixtures are not bundled; place XML files under
-`tests/xml/failed/` before running the external replay verification command.
+External engines are optional. If a process is unavailable, malformed, or
+exceeds its response timeout, `MjaiPlayer` disables it and falls back to the
+native AI rather than blocking or mutating the game.
 
-### Verification Process
+### MJAI-compatible engines
 
-1. **Parse** Tenhou mjlog XML replay files into structured event streams (draws, discards, melds, riichi, agari, ryuukyoku)
-2. **Reconstruct** the exact tile wall order from the replay data (initial hands, draw sequence, dead wall)
-3. **Replay** each round step-by-step through our engine, feeding the same actions from the replay
-4. **Validate** at every step:
-   - Each draw, discard, meld, and riichi is legal according to the engine's rule checks
-   - Ron/tsumo legality (furiten, valid yaku, score calculation)
-   - Final scoring matches Tenhou's results (fu, han, points, payments)
-   - Ryuukyoku (draw) tenpai status and point transfers match
+To use a custom JSON-lines MJAI process, select a non-native backend and set
+the command. The project appends the seat number as the command's final
+argument:
 
 ```bash
-# Run Tenhou replay verification for XML fixtures supplied locally
-pytest tests/tenhou_replay/ -v
+MAHJONG_AI_BACKEND=external \
+MAHJONG_AI_COMMAND='python3 /path/to/engine.py' \
+python3 main.py
 ```
 
-### What This Proves
+The host sends game events to the process, reads its response, and validates
+the response against the legal action set. Useful configuration variables are:
 
-- Yaku detection, fu calculation, and scoring are covered by deterministic and full-game tests
-- Furiten rules (discard furiten, temporary furiten, riichi furiten) behave correctly
-- Meld legality (chi, pon, kan) matches Tenhou's rule interpretation
-- Edge cases (haitei, houtei, rinshan, chankan, double riichi) are handled correctly
+| Variable | Purpose |
+|---|---|
+| `MAHJONG_AI_BACKEND` | `native`, `akochan`, `mortal`, or another external label |
+| `MAHJONG_AI_COMMAND` | Custom MJAI command; ignored when backend is `native` |
+| `MAHJONG_AI_TIMEOUT` | External response timeout in seconds |
+| `MAHJONG_AI_DISPLAY_NAME` | Label shown for the active external engine |
+| `MAHJONG_AI_ORACLE` | Enables Akochan oracle mode for spectator analysis when `1` |
 
-## Design Highlights
+Akochan's bundled executable is platform-specific and is intended for
+spectator or offline analysis. Native AI remains the safe default for human
+games because its decisions use the visible information barrier.
 
-- **Dual Encoding** - 136-encoding tracks unique tile identity, 34-encoding for efficient algorithms
-- **GameView Barrier** - AI and human use the same interface, ensuring fairness
-- **Strict Layering** - core/engine/rules never import the UI layer; translations live entirely in `ui/`
-- **EventBus Logging** - the engine emits events consumed by the game logger; replays are rebuilt from these logs
-- **Swappable AI** - Standard interface (a single `choose_action` protocol) allows future AI model integration
-- **i18n Architecture** - `t()` translation function with locale dictionaries, yaku names used as stable keys; locale consistency is enforced by tests
-- **Invariant Tests** - AI self-play smoke tests assert point conservation after every round
+### Mortal
 
-## Dependencies
+The launcher at `engines/mortal/run.sh` expects:
 
-- Python >= 3.10
-- rich >= 13.0.0
-- pytest >= 7.0.0 (development)
+- A local Docker image named `mortal:latest`
+- A compatible four-player checkpoint named `mortal.pth`
+- The checkpoint in `MORTAL_MODEL_DIR`, which defaults to
+  `~/Models/mortal`
 
-### Tile artwork
+Run it after configuring those external prerequisites:
 
-The image-mode tile artwork is derived from the public-domain assets in
-[FluffyStuff/riichi-mahjong-tiles](https://github.com/FluffyStuff/riichi-mahjong-tiles).
-See [`data/tiles/ATTRIBUTION.md`](data/tiles/ATTRIBUTION.md) for details.
+```bash
+MORTAL_MODEL_DIR=/path/to/mortal-models \
+MAHJONG_AI_BACKEND=mortal \
+python3 main.py
+```
 
----
+The launcher uses Docker's `linux/amd64` platform and mounts the model
+directory read-only. Mortal support is intended for four-player games.
 
-## About This Project
+### Learning mode
 
-This project was **fully implemented by [Claude Code](https://claude.ai/claude-code)** from scratch. Humans only provided requirement documents — all code, tests, and documentation were generated by AI.
+Learning mode is menu option 9. All opponents are AI-controlled while seat 0
+remains manual. Choose a native, Mortal, or Gemini coach. The coach reports
+recommended actions, shanten, ukeire, win possibility, deal-in risk, tactical
+stance, safe tiles, and top alternatives. The native coach remains available
+when an external coach cannot be reached.
 
-### Implementation Info
+### Gemini coach
 
-| Item | Details |
-|------|------|
-| AI Tool | Claude Code (Anthropic CLI) |
-| Model | Claude Opus 4.6 (`claude-opus-4-6`) |
-| Process | Complete code writing and debugging in a single session |
-| Scale | ~30 source files, 120 unit tests |
-| Tokens | ~200K+ tokens (planning, code generation, test fixing) |
-| Date | 2025-02-12 |
+Gemini is an optional, on-demand strategic layer using the external `agy` CLI.
+Install and authenticate `agy` separately, then use Google Gemini in Learning
+Mode or press `G` during an action prompt:
 
-### Later Iterations
+```bash
+MAHJONG_AGY_PATH=/path/to/agy \
+MAHJONG_GEMINI_MODEL=gemini-3.8-flash-low \
+python3 main.py
+```
 
-All subsequent versions were also implemented by Claude Code, including: multilingual interface and PyPI release (v1.1.0), the A+B time control system and settings menu (v1.1.x), the optional Tenhou replay harness, a full engine audit in 2026-06 (fixed tenhou/chankan/kita-dora/riichi-stick-conservation bugs, removed dead code, enforced layering, added LRU caching), the step-by-step game replay feature, and UI improvements (AI riichi tile marker fix, orange red-five tiles, call/ron target highlighting, restructured result screen).
+Configuration variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MAHJONG_AGY_PATH` | `agy` found on `PATH` | Gemini CLI location |
+| `MAHJONG_GEMINI_MODEL` | `gemini-3.8-flash-low` | Model name |
+| `MAHJONG_GEMINI_LANG` | `zh` | Prompt language |
+| `MAHJONG_GEMINI_AUTO` | `0` | Let the Gemini coach query automatically |
+| `MAHJONG_COACH_BACKEND` | interactive selection | `gemini`, `mortal`, or `native` |
+| `MAHJONG_COACH_COMMAND` | unset | Custom coach MJAI command |
+| `MAHJONG_COACH_DISPLAY_NAME` | `Mortal` | Coach label |
+| `MAHJONG_COACH_TIMEOUT` | `5` | Early-practice coach timeout |
+
+Gemini advice is cached per visible turn state. Missing credentials, timeouts,
+or unavailable network access produce a readable message and preserve local
+heuristic fallback behavior.
+
+## LAN multiplayer
+
+Select LAN Multiplayer from the main menu. A host chooses the game format,
+nickname, and port (default `7777`), then shares the displayed address. A
+client enters the host IP, port, and nickname. Empty seats can be filled by
+the host with native AI. The protocol uses length-prefixed JSON messages over
+TCP and validates player names and actions at the host.
+
+LAN mode supports the same four-player and sanma formats, including hanchan,
+tonpuu, timing settings, score settlement, sound, and board rendering.
+
+## Logs and replay
+
+Every completed local game is recorded as a JSON file named
+`game_<session-id>.json`. The default writable log directory is:
+
+- macOS: `~/Library/Application Support/mahjong-cli/logs`
+- Linux and other Unix-like systems: `~/.local/state/mahjong-cli/logs`
+- Windows: `%LOCALAPPDATA%\\mahjong-cli\\logs`
+
+Override it with:
+
+```bash
+MAHJONG_LOG_DIR=/path/to/logs python3 main.py
+```
+
+Replay is menu option 8. It scans the same directory, lists the newest logs,
+and reconstructs rounds step by step in `mahjong/ui/replay_screen.py`.
+
+Replay controls:
+
+| Key | Action |
+|---|---|
+| `Enter` | Next step |
+| `b` | Previous step |
+| number | Jump to a step |
+| `q` | Return |
+
+## Tests and verification
+
+Run the full test suite with:
+
+```bash
+pytest -q
+```
+
+The suite covers core tile/hand/wall behavior, agari and shanten, yaku and
+scoring, furiten, round invariants, AI decisions, coach prompts, replay
+reconstruction, resource loading, LAN serialization and socket flows, and the
+root entrypoint.
+
+The optional Tenhou replay harness lives under `tests/tenhou_replay/`. Tenhou
+XML fixtures are not committed; place local XML files under
+`tests/xml/failed/` before running the external replay verification workflow:
+
+```bash
+pytest -q tests/tenhou_replay/
+```
+
+## Offline simulation and data tools
+
+All scripts are runnable from the repository root:
+
+```bash
+# Native AI self-play: four-player or sanma
+python3 scripts/simulate_ai.py --games 20 --players 4 --mode tonpuu --seed 42
+
+# Compare Greedy, Policy, and Hybrid agents
+python3 scripts/simulate_tournament.py --games 8 --mode tonpuu --seed 42
+
+# Build train/validation/test JSONL.GZ splits from replay inputs
+python3 scripts/build_ai_dataset.py \
+  --input data/benchmark/phoenix_4p_10games.mjson.gz \
+  --output-dir data/ai/
+
+# Train the lightweight discard policy
+python3 scripts/train_ai_policy.py \
+  --train data/ai/train.jsonl.gz \
+  --output data/ai/discard_policy.json
+```
+
+Additional benchmark entrypoints are available in `scripts/`:
+
+- `benchmark_ai.py` evaluates discard choices against Tenhou/Phoenix replays
+- `benchmark_defense_upgrade.py` runs defense scenarios and matchup checks
+- `benchmark_mortal_vs_greedy.py` compares Mortal and native AI variants
+- `run_benchmark.sh` is a convenience wrapper for the Mortal matchup
+
+These tools are offline unless a command explicitly requests replay downloads
+or an external engine.
+
+## Project layout
+
+```text
+.
+├── main.py                         # Backward-compatible source entrypoint
+├── pyproject.toml                  # Package metadata and riichi console script
+├── mahjong/
+│   ├── cli.py                      # Interactive menu and game orchestration
+│   ├── core/                       # Tiles, hands, melds, wall, player state
+│   ├── rules/                      # Agari, shanten, yaku, fu, scoring, furiten
+│   ├── engine/                     # Game/round state, events, timing, logging
+│   ├── player/                     # Human, native AI, policy, hybrid, MJAI
+│   ├── analysis/                   # Coach and early-hand practice systems
+│   ├── network/                    # LAN server, client, protocol, serialization
+│   ├── replay/                     # Game-log loading and state reconstruction
+│   └── ui/                         # Rich rendering, input, locales, replay screen
+├── data/                           # Scoring table, tiles, audio, AI datasets
+├── engines/                        # Akochan and Mortal launchers/assets
+├── scripts/                        # Simulation, benchmark, dataset, training tools
+├── tests/                          # Regression, invariant, integration, and replay tests
+└── docs/                           # AI design and benchmark reports
+```
+
+## Design boundaries
+
+The rules engine is the source of truth for legality and scoring. AI and
+coaching components receive a `GameView`, rank legal candidates, and fall back
+to native behavior on errors or timeouts. Fair-play paths use the player's
+hand and public information only; full-deal/oracle behavior is reserved for
+explicit spectator or offline analysis configurations.
+
+## License and bundled assets
+
+The project is released under the MIT license. See the repository attribution
+files for bundled tile artwork, audio, and the Akochan engine.
