@@ -1,0 +1,173 @@
+"""Abstract player interface and GameView (read-only information barrier)."""
+
+from abc import ABC, abstractmethod
+from copy import copy
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
+
+from mahjong.core.tile import Tile
+from mahjong.core.meld import Meld
+from mahjong.core.hand import Hand
+from mahjong.core.player_state import Wind
+from mahjong.engine.action import Action, AvailableActions
+
+
+@dataclass
+class OpponentView:
+    """Read-only view of an opponent (no hidden tiles)."""
+    seat: int
+    name: str
+    score: int
+    seat_wind: Wind
+    is_dealer: bool
+    is_riichi: bool
+    melds: List[Meld] = field(default_factory=list)
+    discard_pool: List[Tile] = field(default_factory=list)
+    discard_called: List[bool] = field(default_factory=list)
+    discard_is_tsumogiri: List[bool] = field(default_factory=list)  # True = tsumogiri, False = tedashi
+    num_closed_tiles: int = 13
+    kita_count: int = 0
+    riichi_discard_index: int = -1
+
+
+@dataclass
+class GameView:
+    """Read-only view of visible game state.
+
+    This is the information barrier - players can only see what's
+    legally visible. No access to other players' closed tiles or wall.
+    """
+    # Own hand (full access)
+    my_hand: Hand
+    my_seat: int
+    my_wind: Wind
+    my_score: int
+    is_dealer: bool
+
+    # Opponents (limited view)
+    opponents: List[OpponentView] = field(default_factory=list)
+
+    # Table state
+    round_wind: Wind = Wind.EAST
+    honba: int = 0
+    riichi_sticks: int = 0
+    remaining_tiles: int = 70
+    dora_indicators: List[Tile] = field(default_factory=list)
+    round_label: str = ""
+
+    # Sanma kita count (self)
+    my_kita_count: int = 0
+
+    # Turn info
+    last_discard: Optional[Tile] = None
+    last_discard_player: Optional[int] = None
+    active_player: Optional[int] = None
+
+    def __post_init__(self):
+        """Detach the view from mutable engine-owned collections."""
+        if hasattr(self.my_hand, "clone"):
+            self.my_hand = self.my_hand.clone()
+        else:
+            # Replay adapters may provide a lightweight hand-shaped object.
+            # Copy it without imposing the engine Hand implementation on
+            # every read-only consumer.
+            self.my_hand = copy(self.my_hand)
+            for attr in ("closed_tiles", "melds", "discard_pool",
+                         "discard_called", "discard_is_tsumogiri"):
+                value = getattr(self.my_hand, attr, None)
+                if isinstance(value, list):
+                    setattr(self.my_hand, attr, list(value))
+        self.opponents = [OpponentView(
+            seat=opp.seat,
+            name=opp.name,
+            score=opp.score,
+            seat_wind=opp.seat_wind,
+            is_dealer=opp.is_dealer,
+            is_riichi=opp.is_riichi,
+            melds=list(opp.melds),
+            discard_pool=list(opp.discard_pool),
+            discard_called=list(opp.discard_called),
+            discard_is_tsumogiri=list(opp.discard_is_tsumogiri),
+            num_closed_tiles=opp.num_closed_tiles,
+            kita_count=opp.kita_count,
+            riichi_discard_index=opp.riichi_discard_index,
+        ) for opp in self.opponents]
+        self.dora_indicators = list(self.dora_indicators)
+
+class Player(ABC):
+    """Abstract base class for all players.
+
+    The engine interacts with players exclusively through choose_action
+    (see run_round's get_player_action callback). Discard/riichi tile
+    selection is part of the returned Action.
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+
+    @abstractmethod
+    def choose_action(self, game_view: GameView,
+                      available: AvailableActions) -> Action:
+        """Choose an action from available options.
+
+        This is called in two contexts:
+        1. After drawing: can tsumo/riichi/kan/discard
+        2. After opponent's discard: can ron/pon/chi/skip
+        """
+        ...
+
+
+def build_game_view(
+    player_idx: int,
+    players: List,  # List[PlayerState]
+    round_wind: Wind,
+    honba: int,
+    riichi_sticks: int,
+    remaining_tiles: int,
+    dora_indicators: List[Tile],
+    round_label: str = "",
+    last_discard: Optional[Tile] = None,
+    last_discard_player: Optional[int] = None,
+    active_player: Optional[int] = None,
+) -> GameView:
+    """Build a GameView for the given player."""
+    me = players[player_idx]
+
+    opponents = []
+    for p in players:
+        if p.seat == player_idx:
+            continue
+        opponents.append(OpponentView(
+            seat=p.seat,
+            name=p.name,
+            score=p.score,
+            seat_wind=p.seat_wind,
+            is_dealer=p.is_dealer,
+            is_riichi=p.hand.is_riichi,
+            melds=list(p.hand.melds),
+            discard_pool=list(p.hand.discard_pool),
+            discard_called=list(p.hand.discard_called),
+            discard_is_tsumogiri=list(p.hand.discard_is_tsumogiri),
+            num_closed_tiles=len(p.hand.closed_tiles),
+            kita_count=len(p.kita_tiles),
+            riichi_discard_index=p.hand.riichi_discard_index,
+        ))
+
+    return GameView(
+        my_hand=me.hand,
+        my_seat=player_idx,
+        my_wind=me.seat_wind,
+        my_score=me.score,
+        is_dealer=me.is_dealer,
+        my_kita_count=len(me.kita_tiles),
+        opponents=opponents,
+        round_wind=round_wind,
+        honba=honba,
+        riichi_sticks=riichi_sticks,
+        remaining_tiles=remaining_tiles,
+        dora_indicators=dora_indicators,
+        round_label=round_label,
+        last_discard=last_discard,
+        last_discard_player=last_discard_player,
+        active_player=active_player if active_player is not None else player_idx,
+    )

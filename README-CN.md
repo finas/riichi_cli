@@ -1,0 +1,228 @@
+# 🀄️ 日本立直麻将 - 终端CLI
+
+一款功能完整的日本立直麻将终端CLI游戏，支持四人麻（yonma）和三人麻（sanma），多语言界面（中/日/英），使用 Python + Rich 库实现终端渲染。
+
+[![PyPI](https://img.shields.io/pypi/v/riichi-mahjong-cli)](https://pypi.org/project/riichi-mahjong-cli/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/riichi-mahjong-cli?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/riichi-mahjong-cli)
+[![GitHub](https://img.shields.io/badge/GitHub-YarrowRen%2FMahjongCLI-181717?logo=github)](https://github.com/YarrowRen/MahjongCLI)
+[![MahjongCLI DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YarrowRen/MahjongCLI)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[English README](https://github.com/YarrowRen/MahjongCLI/blob/master/README.md)
+
+## 预览
+
+<table><tr>
+<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/02_normal_zh.gif" alt="正常出牌"/></td>
+<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/03_meld_zh.gif" alt="副露操作"/></td>
+</tr></table>
+
+## 功能特性
+
+- **四人麻将** - 半庄战 / 东风战
+- **三人麻将** - 半庄战 / 东风战（去2m-8m、禁止吃、北抜き）
+- **完整规则引擎** - 30+ 种役种判定、符数计算、得分计算
+- **贪心AI对手** - 基于向听数优化的AI，具备基本防守能力
+- **观战模式** - AI vs AI 自动对局
+- **多语言界面** - 中文/日文/英文，彩色牌面；赤5橙色显示，摸牌与鸣/荣目标牌白底高亮
+- **A+B 计时系统** - 基础时间 + 储备时间，实时逐秒倒计时，默认不限时
+- **牌谱回放** - 浏览历史对局，上帝视角逐步回放每一个动作（主菜单选项 8）
+- **对局日志** - 每场完整对局自动保存为 JSON（完整牌山、全部动作、结算结果）
+- **AI 速度可调** - 设置中提供 1秒/3秒/5秒/随机 延时预设
+
+## 安装
+
+```bash
+pipx install riichi-mahjong-cli
+```
+
+或使用 pip：
+
+```bash
+pip install riichi-mahjong-cli
+```
+
+## 快速开始
+
+```bash
+riichi
+```
+
+或从源码运行：
+
+```bash
+python main.py
+```
+
+游戏默认中文启动，语言、时间控制与 AI 速度均可在主菜单**设置**（选项 7）中修改；**历史回放**（选项 8）可逐步查看任意已完成对局。
+
+### 运行测试
+
+```bash
+pytest tests/
+```
+
+## 游戏操作
+
+| 按键 | 操作 |
+|------|------|
+| 数字 1-14 | 选择打出的牌 |
+| `t` | 自摸（和牌） |
+| `h` | 荣和（吃铳） |
+| `r` | 宣告立直 |
+| `p` | 碰 |
+| `c` | 吃 |
+| `k` | 杠（暗杠/加杠/大明杠） |
+| `n` | 北抜き（三麻专用） |
+| `9` | 九种九牌流局 |
+| `s` | 跳过 |
+
+### 回放操作
+
+| 按键 | 操作 |
+|------|------|
+| `Enter` | 下一步 |
+| `b` | 上一步 |
+| 数字 | 跳转到指定步骤 |
+| `q` | 返回 |
+
+## 项目结构
+
+```
+game/
+├── main.py                     # 入口文件（兼容直接运行）
+├── mahjong/
+│   ├── cli.py                  # CLI入口（riichi 命令）
+│   ├── core/                   # 核心数据模型
+│   │   ├── tile.py             # 牌定义（136/34双编码，赤宝牌）
+│   │   ├── meld.py             # 副露数据结构
+│   │   ├── hand.py             # 手牌管理
+│   │   ├── wall.py             # 牌山与王牌
+│   │   └── player_state.py     # 玩家状态
+│   ├── rules/                  # 规则引擎（纯函数，无状态）
+│   │   ├── agari.py            # 和了判定（LRU缓存）
+│   │   ├── shanten.py          # 向听数计算（LRU缓存）
+│   │   ├── fu.py               # 符数计算
+│   │   ├── yaku.py             # 役种判定（30+种）
+│   │   ├── scoring.py          # 得分计算
+│   │   └── furiten.py          # 振听判定
+│   ├── engine/                 # 游戏引擎
+│   │   ├── game.py             # 半庄/东风战管理
+│   │   ├── round.py            # 单局流程控制
+│   │   ├── action.py           # 动作定义
+│   │   ├── event.py            # 事件总线
+│   │   ├── game_logger.py      # 对局日志
+│   │   ├── time_control.py     # A+B时间控制预设
+│   │   └── ai_delay.py         # AI操作速度预设
+│   ├── player/                 # 玩家抽象与AI
+│   │   ├── base.py             # Player抽象基类 + GameView
+│   │   ├── human.py            # 人类玩家 + 计时逻辑
+│   │   └── greedy_ai.py        # 贪心AI
+│   ├── replay/                 # 牌谱回放
+│   │   ├── loader.py           # 日志扫描与加载
+│   │   └── state.py            # 逐步状态重建
+│   └── ui/                     # 终端UI
+│       ├── renderer.py         # 渲染门面
+│       ├── tile_display.py     # 牌面显示
+│       ├── board_layout.py     # 牌桌布局
+│       ├── replay_screen.py    # 回放浏览器（主菜单选项8）
+│       ├── input_handler.py    # 用户输入处理
+│       ├── timeout_input.py    # 超时输入 + 实时倒计时（ANSI）
+│       ├── i18n.py             # 国际化（中/日/英）
+│       ├── labels.py           # 本地化标签构建
+│       └── locales/            # 翻译文件
+│           ├── zh.py           # 中文
+│           ├── ja.py           # 日文
+│           └── en.py           # 英文
+├── tests/                      # 单元测试（168个）
+└── data/
+    └── scoring_table.json      # 翻符→点数查询表
+```
+
+## 支持的役种
+
+### 1翻
+立直、门前清自摸和、断幺九、平和、一杯口、役牌（场风/自风/三元）、一发、海底摸月、河底捞鱼、岭上开花、抢杠
+
+### 2翻
+双立直、混全带幺九、一气通贯、三色同顺、三色同刻、对对和、三暗刻、混老头、小三元、七对子
+
+### 3翻
+混一色、纯全带幺九、二杯口
+
+### 6翻
+清一色
+
+### 役满
+国士无双、四暗刻、大三元、小四喜、大四喜、字一色、清老头、绿一色、九莲宝灯、四杠子、天和、地和
+
+## 规则引擎验证
+
+仓库包含单元测试、完整对局不变量测试，以及可选的天凤牌谱回放测试框架。天凤 XML 牌谱不随仓库发布；如需运行外部牌谱验证，请先将 XML 文件放入 `tests/xml/failed/`。
+
+### 验证流程
+
+1. **解析** 天凤 mjlog XML 牌谱文件，转换为结构化事件流（摸牌、弃牌、副露、立直、和了、流局）
+2. **重建** 牌山顺序 — 从牌谱中的初始手牌、摸牌顺序、王牌信息反推完整牌山排列
+3. **逐步回放** 将牌谱中的每一步动作输入引擎执行，完全复现天凤对局过程
+4. **逐步验证**：
+   - 每次摸牌、弃牌、副露、立直均通过引擎合法性检查
+   - 荣和/自摸的合法性判定（振听、有效役种、得分计算）
+   - 终局计分与天凤结果完全一致（符数、番数、点数、支付）
+   - 流局时的听牌判定与点数分配一致
+
+```bash
+# 运行本地提供的天凤 XML 牌谱验证
+pytest tests/tenhou_replay/ -v
+```
+
+### 验证覆盖范围
+
+- 役种判定、符数计算、得分计算由确定性测试与完整对局测试覆盖
+- 振听规则（现物振听、同巡振听、立直振听）行为正确
+- 副露合法性（吃、碰、杠）与天凤规则一致
+- 边界情况（海底摸月、河底捞鱼、岭上开花、抢杠、双立直等）处理正确
+
+## 设计亮点
+
+- **双编码系统** - 136编码追踪唯一牌身份，34编码用于高效算法计算
+- **GameView信息屏障** - AI和人类使用相同接口，保证公平性
+- **严格分层** - core/engine/rules 不依赖 UI 层，全部翻译集中在 `ui/`
+- **EventBus日志** - 引擎事件由对局日志器消费，回放功能即基于这些日志重建
+- **AI可替换** - 单一 `choose_action` 协议，后期可替换为AI模型
+- **不变量测试** - AI 自对弈冒烟测试每局断言点数守恒；locale 一致性由测试强制保证
+
+## 依赖
+
+- Python >= 3.10
+- rich >= 13.0.0
+- pytest >= 7.0.0（开发）
+
+---
+
+## 关于本项目
+
+本项目**完全由 [Claude Code](https://claude.ai/claude-code) 自主实现**，从零开始构建，人类仅提供需求计划文档，全部代码、测试、文档均由 AI 生成。
+
+### 实现信息
+
+| 项目 | 详情 |
+|------|------|
+| AI 工具 | Claude Code (Anthropic CLI) |
+| 模型 | Claude Opus 4.6 (`claude-opus-4-6`) |
+| 实现过程 | 单次会话完成全部代码编写与调试 |
+| 代码规模 | ~30 个源文件，120 个单元测试 |
+| Token 消耗 | 约 200K+ tokens（含计划解析、代码生成、测试修复） |
+| 完成日期 | 2025-02-12 |
+
+### 后续迭代
+
+后续所有版本同样由 Claude Code 实现，包括：多语言界面与 PyPI 发布（v1.1.0）、A+B 计时系统与设置菜单（v1.1.x）、可选的天凤牌谱回放测试框架、2026-06 全面引擎审查（修复天和/抢杠/北抜き宝牌/立直棒守恒等缺陷、清理死代码、架构分层、LRU 缓存提速）、逐步牌谱回放功能，以及 UI 改进（修复 AI 立直标记、赤5橙色显示、鸣/荣目标牌高亮、重排结算画面）。
+
+### 会话日志
+
+完整的 Claude Code 会话日志保存在：
+
+```
+.claude/2026-02-12-implement-the-following-plan.txt
+```

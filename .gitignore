@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+*.egg
+.DS_Store
+logs/
+CLAUDE.md
+tests/xml/
+OPTIMIZATION.md
+tapes/

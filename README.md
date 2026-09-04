@@ -1,0 +1,301 @@
+# 🀄️ Japanese Riichi Mahjong - Terminal CLI
+
+A fully-featured Japanese Riichi Mahjong terminal CLI game supporting 4-player (yonma) and 3-player (sanma) modes, with multilingual interface (Chinese/Japanese/English), built with Python + Rich.
+
+[![PyPI](https://img.shields.io/pypi/v/riichi-mahjong-cli)](https://pypi.org/project/riichi-mahjong-cli/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/riichi-mahjong-cli?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/riichi-mahjong-cli)
+[![GitHub](https://img.shields.io/badge/GitHub-YarrowRen%2FMahjongCLI-181717?logo=github)](https://github.com/YarrowRen/MahjongCLI)
+[![MahjongCLI DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YarrowRen/MahjongCLI)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[中文文档](https://github.com/YarrowRen/MahjongCLI/blob/master/README-CN.md)
+
+## Preview
+
+<table><tr>
+<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/02_normal_en.gif" alt="Normal Play"/></td>
+<td><img src="https://raw.githubusercontent.com/YarrowRen/MahjongCLI/master/data/static/gifs/03_meld_en.gif" alt="Meld Actions"/></td>
+</tr></table>
+
+## Features
+
+- **4-Player Mahjong** - Hanchan (half game) / Tonpuusen (east-only)
+- **3-Player Mahjong** - Hanchan / Tonpuusen (no 2m-8m, no chi, kita)
+- **Complete Rule Engine** - 30+ yaku detection, fu calculation, scoring
+- **Strong native AI opponents** - Ukeire, dora, yaku-route and defense-aware search
+- **Akochan AI backend** - Bundled open-source engine with native fallback
+- **Trainer-Style Discard Review** - After each discard, compare shanten,
+  effective tiles, waits, hand value, defense, and ranked alternatives
+- **Spectator Mode** - AI vs AI auto-play
+- **Multilingual** - Chinese, Japanese, and English interface
+- **Colored Tiles** - Rich terminal rendering; red fives shown in orange, draw tile and call/ron target tile highlighted
+- **A+B Time Control** - Base + bank seconds per action, real-time countdown with per-second refresh (unlimited by default)
+- **Game Replay** - Browse finished games and step through every action in god view (menu option 8)
+- **Game Logs** - Every finished game is recorded as JSON in a writable per-user directory (override with `MAHJONG_LOG_DIR`)
+- **Adjustable AI Speed** - 1s / 3s / 5s / random delay presets in Settings
+
+## Install
+
+```bash
+pipx install riichi-mahjong-cli
+```
+
+Or with pip:
+
+```bash
+pip install riichi-mahjong-cli
+```
+
+## Quick Start
+
+```bash
+riichi
+```
+
+Or run from source:
+
+```bash
+python main.py
+```
+
+The game starts in Chinese by default. Language, time control, and AI speed can be changed in **Settings** (main menu option 7). **Replay** (option 8) lets you review any finished game step by step.
+
+### Akochan AI backend
+
+The repository includes a macOS build of the open-source Akochan engine and its
+evaluation parameters. AI-vs-AI spectator mode uses it automatically; the fair
+native AI remains the default for human games. You can select it explicitly
+with:
+
+```bash
+MAHJONG_AI_BACKEND=akochan python main.py
+```
+
+Akochan’s legacy pipe mode expects complete initial hands, so use it only for
+trusted/offline analysis. In AI-vs-AI spectator mode, `MAHJONG_AI_BACKEND=akochan`
+uses the complete recorded deal (oracle mode) because no human is competing;
+human games continue to use the fair native backend unless a compatible
+masked-state engine is supplied.
+
+You can also provide another MJAI-compatible engine explicitly:
+
+```bash
+MAHJONG_AI_COMMAND="python path/to/engine.py" python main.py
+```
+
+### Mortal backend
+
+After building the `mortal:latest` Docker image and placing a compatible
+four-player checkpoint at `~/Models/mortal/mortal.pth`, start Mortal with:
+
+```bash
+MAHJONG_AI_BACKEND=mortal python3 main.py
+```
+
+The bundled launcher uses `linux/amd64` for Apple Silicon compatibility and
+mounts the model read-only. Set `MORTAL_MODEL_DIR` to use another model
+directory, or `MAHJONG_AI_TIMEOUT` to override the default 30-second Mortal
+response timeout. Mortal is currently supported for four-player games only.
+Mortal players are identified on the board with a `[Mortal]` suffix. Set
+`MAHJONG_AI_DISPLAY_NAME` to show a custom checkpoint or engine name instead,
+for example `MAHJONG_AI_DISPLAY_NAME="Mortal v4"`.
+
+The command is started once per seat and receives the seat number as its final
+argument. Engine events are sent as JSON lines and every response is checked
+against the legal actions calculated by this project. If the process is absent,
+malformed, or does not answer within two seconds, the built-in strong AI takes
+over automatically, so a bad external setup cannot freeze or corrupt a game.
+
+### Learning Mode (Mortal Coach)
+
+Select **Option 9** in the main menu to enter **Learning Mode**.
+In this mode:
+- All opponents (Seats 1, 2, 3) are AI players.
+- Seat 0 (human player) has a background Mortal coach attached.
+- On each turn, the coach displays real-time recommendations with **Win Possibility (%)**, **Deal-in Risk (%)**, **Shanten**, **Ukeire**, and top alternative discards.
+- The game does **not** auto-play: you retain full manual control over every move and can freely follow or deviate from the advice.
+- If the external Mortal engine is not running, the built-in intelligent coach automatically provides the suggestions and probability metrics as fallback.
+
+### Early Hand Route Practice Mode (Option 10)
+
+Select **Option 10** in the main menu to practice opening hand planning (**配牌构想与前巡实战特训**):
+1. **Phase 1 (Route Formulation / 配牌定构想)**:
+   - Receive a realistic opening deal (配牌 14 tiles) with dora and wind context.
+   - Evaluate hand blocks and commit to a strategic route (e.g. *Riichi/Pinfu*, *Tanyao*, *Yakuhai Speed*, *Flush*, *Seven Pairs*, or *Defensive Fold*).
+2. **Phase 2 (Play Opening Turns / 前巡实战操作)**:
+   - Play through the critical first 6–8 turns with active AI opponents.
+   - On each turn, review live 5-block evolution, target route alignment, and Mortal's Q-values and Softmax $P\%$.
+3. **Phase 3 (Report Card / 前巡战果诊断与评分)**:
+   - View shanten progression (e.g. 4-shanten $\rightarrow$ 1-shanten), block pruning efficiency, and decision concordance rate against Mortal.
+
+### Run Tests
+
+```bash
+pytest tests/
+```
+
+## Controls
+
+| Key | Action |
+|------|------|
+| 1-14 | Select tile to discard |
+| `t` | Tsumo (self-draw win) |
+| `h` | Ron (win off discard) |
+| `r` | Declare Riichi |
+| `p` | Pon |
+| `c` | Chi |
+| `k` | Kan (concealed/added/open) |
+| `n` | Kita (3-player only) |
+| `9` | Nine-tile draw |
+| `s` | Skip |
+
+### Replay Controls
+
+| Key | Action |
+|------|------|
+| `Enter` | Next step |
+| `b` | Previous step |
+| number | Jump to step |
+| `q` | Back |
+
+## Project Structure
+
+```
+game/
+├── main.py                     # Entry point (backward compatible)
+├── mahjong/
+│   ├── cli.py                  # CLI entry point (riichi command)
+│   ├── core/                   # Core data models
+│   │   ├── tile.py             # Tile definitions (136/34 dual encoding, red dora)
+│   │   ├── meld.py             # Meld data structures
+│   │   ├── hand.py             # Hand management
+│   │   ├── wall.py             # Wall and dead wall
+│   │   └── player_state.py     # Player state tracking
+│   ├── rules/                  # Rule engine (pure functions, stateless)
+│   │   ├── agari.py            # Win detection (LRU cached)
+│   │   ├── shanten.py          # Shanten calculation (LRU cached)
+│   │   ├── fu.py               # Fu calculation
+│   │   ├── yaku.py             # Yaku detection (30+ types)
+│   │   ├── scoring.py          # Score calculation
+│   │   └── furiten.py          # Furiten detection
+│   ├── engine/                 # Game engine
+│   │   ├── game.py             # Hanchan/Tonpuusen management
+│   │   ├── round.py            # Single round flow control
+│   │   ├── action.py           # Action definitions
+│   │   ├── event.py            # Event bus
+│   │   ├── game_logger.py      # Game logging
+│   │   ├── time_control.py     # A+B time control presets
+│   │   └── ai_delay.py         # AI action speed presets
+│   ├── player/                 # Player abstraction & AI
+│   │   ├── base.py             # Player base class + GameView
+│   │   ├── human.py            # Human player + timing logic
+│   │   └── greedy_ai.py        # Greedy AI
+│   ├── replay/                 # Game replay
+│   │   ├── loader.py           # Log scanning & loading
+│   │   └── state.py            # Step-by-step state reconstruction
+│   └── ui/                     # Terminal UI
+│       ├── renderer.py         # Rendering facade
+│       ├── tile_display.py     # Tile display formatting
+│       ├── board_layout.py     # Board layout rendering
+│       ├── replay_screen.py    # Replay browser (menu option 8)
+│       ├── input_handler.py    # User input handling
+│       ├── timeout_input.py    # Timed input + live countdown (ANSI)
+│       ├── i18n.py             # Internationalization (zh/ja/en)
+│       ├── labels.py           # Localized label construction
+│       └── locales/            # Translation files
+│           ├── zh.py           # Chinese translations
+│           ├── ja.py           # Japanese translations
+│           └── en.py           # English translations
+├── tests/                      # Unit tests (168 cases)
+└── data/
+    └── scoring_table.json      # Han/fu → points lookup table
+```
+
+## Supported Yaku
+
+### 1 Han
+Riichi, Menzen Tsumo, Tanyao, Pinfu, Iipeikou, Yakuhai (round/seat wind, dragons), Ippatsu, Haitei, Houtei, Rinshan Kaihou, Chankan
+
+### 2 Han
+Double Riichi, Chanta, Ittsu, Sanshoku Doujun, Sanshoku Doukou, Toitoi, San Ankou, Honroutou, Shousangen, Chiitoitsu
+
+### 3 Han
+Honitsu, Junchan, Ryanpeikou
+
+### 6 Han
+Chinitsu
+
+### Yakuman
+Kokushi Musou, Suu Ankou, Daisangen, Shousuushii, Daisuushii, Tsuuiisou, Chinroutou, Ryuuiisou, Chuuren Poutou, Suukantsu, Tenhou, Chiihou
+
+## Rule Engine Verification
+
+The repository includes unit tests, full-game invariants, and an optional Tenhou
+replay harness. Tenhou XML fixtures are not bundled; place XML files under
+`tests/xml/failed/` before running the external replay verification command.
+
+### Verification Process
+
+1. **Parse** Tenhou mjlog XML replay files into structured event streams (draws, discards, melds, riichi, agari, ryuukyoku)
+2. **Reconstruct** the exact tile wall order from the replay data (initial hands, draw sequence, dead wall)
+3. **Replay** each round step-by-step through our engine, feeding the same actions from the replay
+4. **Validate** at every step:
+   - Each draw, discard, meld, and riichi is legal according to the engine's rule checks
+   - Ron/tsumo legality (furiten, valid yaku, score calculation)
+   - Final scoring matches Tenhou's results (fu, han, points, payments)
+   - Ryuukyoku (draw) tenpai status and point transfers match
+
+```bash
+# Run Tenhou replay verification for XML fixtures supplied locally
+pytest tests/tenhou_replay/ -v
+```
+
+### What This Proves
+
+- Yaku detection, fu calculation, and scoring are covered by deterministic and full-game tests
+- Furiten rules (discard furiten, temporary furiten, riichi furiten) behave correctly
+- Meld legality (chi, pon, kan) matches Tenhou's rule interpretation
+- Edge cases (haitei, houtei, rinshan, chankan, double riichi) are handled correctly
+
+## Design Highlights
+
+- **Dual Encoding** - 136-encoding tracks unique tile identity, 34-encoding for efficient algorithms
+- **GameView Barrier** - AI and human use the same interface, ensuring fairness
+- **Strict Layering** - core/engine/rules never import the UI layer; translations live entirely in `ui/`
+- **EventBus Logging** - the engine emits events consumed by the game logger; replays are rebuilt from these logs
+- **Swappable AI** - Standard interface (a single `choose_action` protocol) allows future AI model integration
+- **i18n Architecture** - `t()` translation function with locale dictionaries, yaku names used as stable keys; locale consistency is enforced by tests
+- **Invariant Tests** - AI self-play smoke tests assert point conservation after every round
+
+## Dependencies
+
+- Python >= 3.10
+- rich >= 13.0.0
+- pytest >= 7.0.0 (development)
+
+### Tile artwork
+
+The image-mode tile artwork is derived from the public-domain assets in
+[FluffyStuff/riichi-mahjong-tiles](https://github.com/FluffyStuff/riichi-mahjong-tiles).
+See [`data/tiles/ATTRIBUTION.md`](data/tiles/ATTRIBUTION.md) for details.
+
+---
+
+## About This Project
+
+This project was **fully implemented by [Claude Code](https://claude.ai/claude-code)** from scratch. Humans only provided requirement documents — all code, tests, and documentation were generated by AI.
+
+### Implementation Info
+
+| Item | Details |
+|------|------|
+| AI Tool | Claude Code (Anthropic CLI) |
+| Model | Claude Opus 4.6 (`claude-opus-4-6`) |
+| Process | Complete code writing and debugging in a single session |
+| Scale | ~30 source files, 120 unit tests |
+| Tokens | ~200K+ tokens (planning, code generation, test fixing) |
+| Date | 2025-02-12 |
+
+### Later Iterations
+
+All subsequent versions were also implemented by Claude Code, including: multilingual interface and PyPI release (v1.1.0), the A+B time control system and settings menu (v1.1.x), the optional Tenhou replay harness, a full engine audit in 2026-06 (fixed tenhou/chankan/kita-dora/riichi-stick-conservation bugs, removed dead code, enforced layering, added LRU caching), the step-by-step game replay feature, and UI improvements (AI riichi tile marker fix, orange red-five tiles, call/ron target highlighting, restructured result screen).
