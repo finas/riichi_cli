@@ -346,6 +346,42 @@ or an external engine.
 └── docs/                           # AI design and benchmark reports
 ```
 
+## Frontend integration API
+
+The headless JSON-lines service provides a frontend-neutral boundary for a
+desktop client. Start it as a persistent process:
+
+```bash
+python3 -m mahjong.app
+```
+
+The message flow is:
+
+```text
+service → hello
+client  → start
+service → ready, event*, action_request
+client  → action_response
+service → event*, round_result ... game_end
+```
+
+Every message is an object with `protocol: "riichi-mahjong"` and
+`version: 1`. A `start` payload can select `num_players`, `is_sanma`,
+`is_tonpuu`, `player_name`, `player_names`, and a custom A+B `time_control`.
+An `action_request` includes the serialized `GameView` and
+`AvailableActions`; the client must answer with an `action_response` using the
+same `request_id`. Tile identities use the existing 136-ID representation.
+
+The service validates every returned action against the legal action set and
+reports invalid messages without passing arbitrary state into the rules
+engine. Snapshots contain the controlled player's hand and public opponent
+information only; hidden opponent tiles, the wall, and full `PlayerState`
+objects are never sent to a frontend.
+
+The current Rich CLI is an independent frontend over the same engine concepts.
+A Rust desktop client can therefore be added without replacing the tested
+rules, scoring, AI, replay, or logging code.
+
 ## Design boundaries
 
 The rules engine is the source of truth for legality and scoring. AI and
